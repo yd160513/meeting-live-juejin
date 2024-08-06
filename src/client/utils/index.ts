@@ -72,3 +72,23 @@ export const getShareMedia = async () => {
   };
   return await navigator.mediaDevices.getDisplayMedia(constraints).catch(handleError);
 }
+
+/**
+ * 获取指定媒体设备id对应的媒体流（不传参数则获取默认的摄像头和麦克风）
+ * @param videoId
+ * @param audioId
+ * @returns {Promise<void>}
+ */
+export const getTargetDeviceMedia = async (videoId?: string, audioId?: string) => {
+  const constraints = {
+    audio: {deviceId: audioId ? {exact: audioId} : undefined},
+    video: {
+      deviceId: videoId ? {exact: videoId} : undefined,
+      width:1920,
+      height:1080,
+      frameRate: { ideal: 10, max: 15 }
+    }
+  };
+  //被调用方法前面有，此处不再重复
+  return await getLocalUserMedia(constraints).catch(handleError);
+}

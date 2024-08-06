@@ -12,6 +12,7 @@
     "type-check": "vue-tsc --build --force"
   },
   "dependencies": {
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "element-plus": "^2.7.8",
     "redis": "^4.7.0",
     "socket.io": "^4.7.5",

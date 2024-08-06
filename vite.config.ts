@@ -7,9 +7,9 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  server: {
-    open: `/#?roomId=2016&userId=513-${Date.now()}`
-  },
+  // server: { // 本地开发时，自动打开浏览器并访问指定页面
+  //   open: `/#?roomId=2016&userId=513-${Date.now()}`
+  // },
   plugins: [
     vue(),
     vueJsx(),

@@ -20,6 +20,11 @@ const router = createRouter({
       path: '/live',
       name: 'live',
       component: () => import('../views/live/LivePage2.vue')
+    },
+    {
+      path: '/vbpage',
+      name: 'vbpage',
+      component: () => import('../views/virtualBackground/virtualBackgroundPage.vue')
     }
   ]
 })

@@ -89,3 +89,6 @@ const localStream = await navigator.mediaDevices.getUserMedia({ video: true, aud
 pc.addTrack(localStream.getVideoTracks()[0], localStream);
 pc.addTrack(localStream.getAudioTracks()[0], localStream);
 ```
+
+## 问题点
+### 如何将虚拟背景的流发送到远端
