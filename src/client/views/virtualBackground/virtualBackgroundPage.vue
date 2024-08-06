@@ -25,7 +25,7 @@ import {
   setRemoteDomVideoStream
 } from "@/utils";
 import * as SFS from "@mediapipe/selfie_segmentation";
-import bg from '@/assets/bg.jpg'
+import bg from '@/assets/bg2.jpg'
 
 const userInfo = ref({
   roomId: '',
@@ -67,39 +67,19 @@ const handler = async () => {
   video.muted = true
   await virtualBg()
 
-  const senders = localRtcPc.getSenders();
-  senders.forEach(sender => {
-    if (sender.track?.kind === 'video') {
-      localRtcPc.removeTrack(sender);
-    }
-  });
-
+  // 将虚拟背景的流发送到远端
   const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
-  const vbMediaStream = canvas.captureStream()
-  for (const track of vbMediaStream.getTracks()) {
-    localRtcPc.addTrack(track)
-  }
-
+  const vbMediaStream = canvas.captureStream(30)
   const videoTrack = vbMediaStream.getVideoTracks()[0];
   const sender = localRtcPc.getSenders().find(s => s.track?.kind === 'video');
   if (sender) {
-    await sender.replaceTrack(videoTrack);
-    const offer = await localRtcPc.createOffer();
-    await localRtcPc.setLocalDescription(offer);
-    localSocket.emit('offer', {
-      userId: userInfo.value.userId,
-      targetUid: T,
-      offer
-    });
+    try {
+      await sender.replaceTrack(videoTrack);
+      console.log('Original track restored successfully');
+    } catch (error) {
+      console.error('Error restoring original track: ', error);
+    }
   }
-  // // 重新协商 SDP
-  // const offer = await localRtcPc.createOffer();
-  // await localRtcPc.setLocalDescription(offer);
-  // localSocket.emit('offer', {
-  //   userId: userInfo.value.userId,
-  //   targetUid: T,
-  //   offer
-  // });
 }
 
 /**
