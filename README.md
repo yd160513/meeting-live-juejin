@@ -90,5 +90,33 @@ pc.addTrack(localStream.getVideoTracks()[0], localStream);
 pc.addTrack(localStream.getAudioTracks()[0], localStream);
 ```
 
-## 问题点
-### 如何将虚拟背景的流发送到远端
+## 虚拟背景实现流程
+1. 获取摄像头画面流。
+2. 初始化图像分割工具。
+3. 在本地的页面 DOM 中，播放第一步获取到的视频流。
+4. 监听视频流播放后，将画面帧发送到图像分割工具处理。
+5. 图像分割工具利用机器学习模型，识别画面并分割人体，然后处理得到分割后的蒙版，我们得到蒙版后将背景替换成自己的图片，最后展示到 canvas 。
+
+### 初始化图像分割工具时重要参数
+- MIN_DETECTION_CONFIDENCE ：手部检测模型中的最小置信度值，取值区间[0.0, 1.0] 被认为是成功的检测。默认为0.5。
+- MIN_TRACKING_CONFIDENCE ： 跟踪模型的最小置信度值，取值区间[0.0, 1.0]，将其设置为更高的值可以提高解决方案的稳健性，但是会带来更高的延迟，默认0.5。
+
+### 如何将虚拟背景流发送到远端
+通过 canvas.captureStream(30) 获取 canvas 对应的 stream，再获取 senders 的 video track 并将其通过 replaceTrack 进行替换
+```ts
+const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
+  const vbMediaStream = canvas.captureStream(30)
+  const videoTrack = vbMediaStream.getVideoTracks()[0];
+  
+  for (const [key, value] of tMap) {
+    const sender = value.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) {
+      try {
+        await sender.replaceTrack(videoTrack);
+        console.log('Original track restored successfully');
+      } catch (error) {
+        console.error('Error restoring original track: ', error);
+      }
+    }
+  }
+```

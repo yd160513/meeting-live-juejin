@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * 启动该 demo 需要将 server 目录下的 virtualbg-model 文件夹作为服务器启动，可以通过 http-server 来启动，后面处理背景时会用到
+ * http-server -p 5500 -c-1 --cors
  *
  * 实现直播 demo
  * 老师端: http://localhost:5173/vbpage/#?roomId=2016&userId=9999&role=pub&nickname=T
@@ -60,28 +61,6 @@ let selfieSegmentation: any
 
 const rfId = ref(0)
 
-const handler = async () => {
-  let video = document.getElementById('local-video') as HTMLVideoElement
-  let newStream = await getTargetDeviceMedia() as MediaStream
-  video.srcObject = newStream
-  video.muted = true
-  await virtualBg()
-
-  // 将虚拟背景的流发送到远端
-  const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
-  const vbMediaStream = canvas.captureStream(30)
-  const videoTrack = vbMediaStream.getVideoTracks()[0];
-  const sender = localRtcPc.getSenders().find(s => s.track?.kind === 'video');
-  if (sender) {
-    try {
-      await sender.replaceTrack(videoTrack);
-      console.log('Original track restored successfully');
-    } catch (error) {
-      console.error('Error restoring original track: ', error);
-    }
-  }
-}
-
 /**
  * 监听触发模型处理
  */
@@ -92,7 +71,7 @@ const virtualBg = async () => {
   }
   video.addEventListener('playing',function(){
     let myvideo = this;
-    let lastTime = new Date();
+    let lastTime = Date.now();
     async function getFrames() {
       const now = myvideo.currentTime;
       if(now > lastTime){
@@ -104,6 +83,45 @@ const virtualBg = async () => {
     };
     getFrames()
   })
+}
+
+const handler = async () => {
+  let video = document.getElementById('local-video') as HTMLVideoElement
+  let newStream = await getTargetDeviceMedia() as MediaStream
+  video.srcObject = newStream
+  video.muted = true
+  await virtualBg()
+
+  // 将虚拟背景的流发送到远端
+  const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
+  const vbMediaStream = canvas.captureStream(30)
+  const videoTrack = vbMediaStream.getVideoTracks()[0];
+  // 这里并不是 localRtcPc，而是老师端维护的所有
+  /**
+   * 这里并不是 localRtcPc，而是老师端维护有 N 对RTCPeerConnection，因此需要遍历直播间所有的关联关系，并替换新的流。
+   * 因为 localRtcPc 有可能是学生端，有可能是老师端。
+   */
+  for (const [key, value] of tMap) {
+    const sender = value.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) {
+      try {
+        await sender.replaceTrack(videoTrack);
+        console.log('Original track restored successfully');
+      } catch (error) {
+        console.error('Error restoring original track: ', error);
+      }
+    }
+    // 错误代码:
+    // const sender = localRtcPc.getSenders().find(s => s.track?.kind === 'video');
+    // if (sender) {
+    //   try {
+    //     await sender.replaceTrack(videoTrack);
+    //     console.log('Original track restored successfully');
+    //   } catch (error) {
+    //     console.error('Error restoring original track: ', error);
+    //   }
+    // }
+  }
 }
 
 // 对背景进行处理
@@ -156,10 +174,31 @@ const initVb = async () => {
 }
 
 const onRemoteAnswer = async (data) => {
+  // 获取对应的 pc
+  const fromUid = data.userId
+  const localUid = data.targetUid
+  let localRtcPc: RTCPeerConnection
+  // if (userInfo.value.role === 'pub') {
+    const pcKey = localUid+'-'+fromUid
+    localRtcPc = sMap.get(pcKey) as RTCPeerConnection
+  // } else {
+  //   const pcKey = fromUid+'-'+localUid
+  //   localRtcPc = sMap.get(pcKey) as RTCPeerConnection
+  // }
   await localRtcPc.setRemoteDescription(data.answer)
 }
 
 const onRemoteOffer = async (data) => {
+  const fromUid = data.userId
+  const localUid = data.targetUid
+  let localRtcPc: RTCPeerConnection
+  if (userInfo.value.role === 'pub') {
+    const pcKey = localUid+'-'+fromUid
+    localRtcPc = tMap.get(pcKey) as RTCPeerConnection
+  } else {
+    const pcKey = fromUid+'-'+localUid
+    localRtcPc = sMap.get(pcKey) as RTCPeerConnection
+  }
   await localRtcPc.setRemoteDescription(data.offer)
   const answer = await localRtcPc.createAnswer()
   await localRtcPc.setLocalDescription(answer)
@@ -198,7 +237,7 @@ const onPcEvent = async (pc: RTCPeerConnection, userId: string, targetUid: strin
  */
 const onCall = async (data) => {
   console.log('onCall', data)
-  localRtcPc = tMap.get(`${T}-${data.userId}`) as RTCPeerConnection
+  const localRtcPc = tMap.get(`${data.targetUid}-${data.userId}`) as RTCPeerConnection
 
   await onPcEvent(localRtcPc, data.userId, data.targetUid)
 
@@ -222,7 +261,7 @@ const initStudent = async () => {
     targetUid: T,
   })
 
-  localRtcPc = sMap.get(`${userInfo.value.userId}-${T}`) as RTCPeerConnection
+  const localRtcPc = sMap.get(`${userInfo.value.userId}-${T}`) as RTCPeerConnection
 
   // 这一步要尽早的添加，因为 call 发出去之后，被叫就会 addTrack。这里尽早的添加，就可以尽早的收到远端的流
   localRtcPc.addTransceiver("audio", {direction: "recvonly"});
@@ -296,7 +335,18 @@ const initSocket = async () => {
 
     if (type === 'candidate') {
       console.log('收到远端 candidate')
-      await localRtcPc.addIceCandidate(data.candidate)
+      // 获取对应的 pc
+      const fromUid = data.userId
+      const localUid = data.targetUid
+      let pc: RTCPeerConnection
+      if (userInfo.value.role === 'pub') {
+        const pcKey = localUid+'-'+fromUid
+        pc = tMap.get(pcKey) as RTCPeerConnection
+      } else {
+        const pcKey = fromUid+'-'+localUid
+        pc = sMap.get(pcKey) as RTCPeerConnection
+      }
+      await pc.addIceCandidate(data.candidate)
     }
 
   })
