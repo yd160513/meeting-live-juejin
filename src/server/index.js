@@ -44,8 +44,8 @@ function getParams(url, queryName) {
 }
 
 // 获取用户信息
-async function getUserDetailByUid(userId, roomId) {
-    let res = JSON.stringify(({userId, roomId, nickname: userId}))
+async function getUserDetailByUid(userId, roomId, nickname = userId, role = null) {
+    let res = JSON.stringify(({userId, roomId, nickname, role}))
     console.log('getUserDetailByUid', res)
     return res
 }
@@ -86,15 +86,18 @@ async function getRoomUser(roomId) {
 
 async function onListener(socket) {
     let url = socket.request.url
+    console.log('socket request url', url)
     let userId = getParams(url, 'userId')
     let roomId = getParams(url, 'roomId')
+    let role = getParams(url, 'role')
+    let nickname = getParams(url, 'nickname')
     console.log("client uid："+userId+" roomId: "+roomId+" online ")
     userMap.set(userId, socket)
 
     // room cache
     if (roomId) {
-        await redisClient.hSet(ROOM_KEY + roomId, userId, await getUserDetailByUid(userId, roomId))
-        await oneToRoomMany(roomId, getMsg('join', userId + 'join the room'))
+        await redisClient.hSet(ROOM_KEY + roomId, userId, await getUserDetailByUid(userId, roomId, nickname, role))
+        await oneToRoomMany(roomId, getMsg('join', userId + ' join the room'))
     }
 
     // candidate 信令
@@ -150,6 +153,8 @@ async function onListener(socket) {
             await redisClient.hDel(ROOM_KEY + roomId, userId)
             await oneToRoomMany(roomId, getMsg('leave', userId + 'leave the room'))
         }
+        // 清除缓存
+        // await redisClient.flushDb()
     })
 
     // 会议室人员变动

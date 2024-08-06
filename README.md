@@ -56,3 +56,36 @@ npm run dev
 - [x] disconnect 信令，通知所有人，有人离开房间
 - [x] roomUserList 信令，获取会议室人员信息
 - [x] message 信令，会中发送消息
+
+### 直播
+1. 老师 T 进入后将本地视频渲染到 video 上
+2. 学生 S1 进入后和老师 T 建立连接
+3. 学生 S2 进入后和老师 T 建立连接
+4. 学生 S3 进入后和老师 T 建立连接
+
+## addTrack 和 addTransceiver 的区别
+### addTrack 方法
+功能: 将媒体轨道（如音频或视频）添加到 RTCPeerConnection。
+自动创建 RTCRtpTransceiver: 如果没有预先创建 RTCRtpTransceiver，会自动创建一个新的 RTCRtpTransceiver 并将其与该轨道关联。
+适用场景: 适用于简单的媒体流传输场景，不需要对媒体流的传输方向进行精细控制。
+使用示例:
+```js
+const pc = new RTCPeerConnection();
+const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+for (const track of localStream.getTracks()) {
+pc.addTrack(track, localStream);
+}
+```
+### addTransceiver 方法
+功能: 创建一个新的 RTCRtpTransceiver，可以指定媒体类型（如音频或视频）和传输方向（如 sendrecv、sendonly、recvonly）。
+灵活性: 更灵活，适用于需要精细控制媒体流传输方向的场景。
+轨道添加: 创建的 RTCRtpTransceiver 可以在之后通过 addTrack 方法添加轨道。
+使用示例:
+```js
+const pc = new RTCPeerConnection();
+const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
+const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
+const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+pc.addTrack(localStream.getVideoTracks()[0], localStream);
+pc.addTrack(localStream.getAudioTracks()[0], localStream);
+```

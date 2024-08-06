@@ -47,7 +47,7 @@
 import { useRoute } from 'vue-router'
 import { ref, onUnmounted } from "vue";
 import { io, Socket } from 'socket.io-client'
-import {getLocalUserMedia, setDomVideoStream, setRemoteDomVideoStream} from "@/utils";
+import {getLocalUserMedia, getShareMedia, setDomVideoStream, setRemoteDomVideoStream} from "@/utils";
 
 interface UserInfo {
   roomId: string;
@@ -75,6 +75,27 @@ let channel: RTCDataChannel
 const userList = ref<{ roomId:string; userId: string; nickname: string }[]>([])
 
 let localRtcPc: RTCPeerConnection
+
+const changeCamera = async () => {
+  let stream = await getShareMedia()
+  const senders = localRtcPc.getSenders()
+  if (stream) {
+    const [videoTrack] = stream.getVideoTracks();
+    const send = senders.find((s) => s.track?.kind === 'video')//找到视频类型发送方信息
+    if (send) {
+      send.replaceTrack(videoTrack) //替换视频媒体信息
+    }
+  }
+}
+
+const openVideoOrNot = () => {
+  const senders = localRtcPc.getSenders()
+  const send = senders.find(sender => sender.track?.kind === 'video')
+
+  if (send && send.track) {
+    send.track.enabled = !send.track.enabled
+  }
+}
 
 const sendMessageUserRtcChannel = () => {
   channel.send(formInline.value.rtcmessage)
