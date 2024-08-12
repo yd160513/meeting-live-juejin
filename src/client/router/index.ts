@@ -25,6 +25,11 @@ const router = createRouter({
       path: '/vbpage',
       name: 'vbpage',
       component: () => import('../views/virtualBackground/virtualBackgroundPage.vue')
+    },
+    {
+      path: '/dmpage',
+      name: 'dmpage',
+      component: () => import('../views/danmu/danmuPage.vue')
     }
   ]
 })

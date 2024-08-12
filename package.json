@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@mediapipe/selfie_segmentation": "^0.1.1675465747",
+    "danmaku": "^2.0.6",
     "element-plus": "^2.7.8",
     "redis": "^4.7.0",
     "socket.io": "^4.7.5",
